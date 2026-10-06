@@ -1,6 +1,7 @@
 package com.coffeeshopordersystems.domain.user.entity;
 
 import com.coffeeshopordersystems.global.entity.BaseTimeEntity;
+import com.coffeeshopordersystems.global.exception.ErrorCode;
 import jakarta.persistence.*;
 import lombok.AccessLevel;
 import lombok.Getter;
@@ -26,4 +27,13 @@ public class User extends BaseTimeEntity {
     public void charge(long amount){
         this.point += amount;
     }
-}
+
+    public void use(long amount){
+        if(this.point - amount < 0) {
+            throw new com.coffeeshopordersystems.global.exception.BusinessException(
+                    ErrorCode.POINT_NOT_ENOUGH);
+        }
+        this.point -= amount;
+        }
+    }
+

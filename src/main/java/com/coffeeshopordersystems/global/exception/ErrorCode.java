@@ -13,8 +13,8 @@ public enum ErrorCode {
   CHARGE_AMOUNT_INVALID(HttpStatus.BAD_REQUEST, "POINT_001", "충전 금액이 0보다 커야 합니다."),
 
   MENU_NOT_FOUND(HttpStatus.NOT_FOUND, "ORDER_002", "존재하지 않는 메뉴입니다."),
-  POINT_NOT_ENOUGH(HttpStatus.BAD_REQUEST, "ORDER_001", "포인트가 부족합니다.");
-
+  POINT_NOT_ENOUGH(HttpStatus.BAD_REQUEST, "ORDER_001", "포인트가 부족합니다."),
+  ORDER_PROCESSING(HttpStatus.CONFLICT, "ORDER_003", "현재 처리 중인 주문이 있습니다. 잠시 후에 다시 시도해주세요.");
 
     private final HttpStatus status;
     private final String code;
