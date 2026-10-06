@@ -28,13 +28,9 @@ import java.util.UUID;
 @RequiredArgsConstructor
 public class OrderService {
 
-    private final UserRepository userRepository;
-    private final MenuRepository menuRepository;
-    private final OrderRepository orderRepository;
-    private final OrderItemRepository orderItemRepository;
-    private final PaymentRepository paymentRepository;
-    private final RedisLockService redisLockService;
-    private final OrderEventClient orderEventClient;
+  private final OrderCoreService orderCoreService;
+  private final RedisLockService redisLockService;
+  private final OrderEventClient orderEventClient;
 
     public OrderResponse order(OrderRequest request) {
         String lockKey = "lock:point:" + request.userId();
@@ -46,7 +42,7 @@ public class OrderService {
         }
 
         try {
-            OrderResponse response = processOrder(request);
+            OrderResponse response = orderCoreService.processOrder(request);
 
             List<Long> menuIds = request.items().stream()
                     .map(OrderRequest.OrderItemRequest::menuId)
@@ -57,53 +53,6 @@ public class OrderService {
         } finally {
             redisLockService.unlock(lockKey, lockValue);
         }
-    }
-
-    @Transactional
-    public OrderResponse processOrder(OrderRequest request) {
-        User user = userRepository.findById(request.userId())
-                .orElseGet(() -> userRepository.save(new User(request.userId())));
-
-        List<Menu> menus = new ArrayList<>();
-        long totalPrice = 0;
-        for (OrderRequest.OrderItemRequest item : request.items()) {
-            Menu menu = menuRepository.findById(item.menuId())
-                    .orElseThrow(() -> new BusinessException(ErrorCode.MENU_NOT_FOUND));
-            menus.add(menu);
-            totalPrice += menu.getPrice() * item.quantity();
-        }
-        Order order = orderRepository.save(new Order(user.getId(), totalPrice));
-
-        List<OrderResponse.OrderItemResponse> itemResponses = new ArrayList<>();
-        for (int i = 0; i < request.items().size(); i++) {
-            OrderRequest.OrderItemRequest itemRequest = request.items().get(i);
-            Menu menu = menus.get(i);
-
-            orderItemRepository.save(new OrderItem(
-                    order.getId(), menu.getId(), menu.getName(), menu.getPrice(), itemRequest.quantity()
-            ));
-
-            itemResponses.add(new OrderResponse.OrderItemResponse(
-                    menu.getId(), menu.getName(), itemRequest.quantity(), menu.getPrice()
-            ));
-        }
-        Payment payment = new Payment(order.getId(), totalPrice);
-
-        try {
-            user.use(totalPrice);
-        } catch (BusinessException e) {
-            order.fail();
-            payment.fail();
-            paymentRepository.save(payment);
-            throw e;
-        }
-        order.pay();
-        payment.success();
-        paymentRepository.save(payment);
-
-        return new OrderResponse(
-                order.getId(), order.getOrderStatus().name(), totalPrice, user.getPoint(), itemResponses
-        );
     }
 }
 
